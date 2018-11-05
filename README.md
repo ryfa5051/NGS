@@ -12,5 +12,6 @@ Changes:
   - runtime now displays correctly in minutes
   - changed tirmmomatic back to default "false" for the <keepBothReads> reverse complement clone option
   - cleaned and annotated  
+  
 *done*
  
