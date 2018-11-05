@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=3_batch_Miseq_w/TRIM"true"
+#SBATCH --job-name=3_batch_Miseq
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=ryfa5051@colorado.edu
 #SBATCH --nodes=1
@@ -14,24 +14,23 @@ start=$(date +%s)
 echo "NGS Processing Start"
 echo $(date)
 module load trimmomatic bwa samtools bcftools vcftools picard gatk fastx-toolkit/0.0.13 bbmap fastqc
-###############################################REPLACE*BatchNum*WITHIN###################################################################
-###############################################REPLACE*BatchNum*WITHIN####################################################################
+###############################REPLACE_BatchNum_BELOW###############################
 batchNum=3_batch
 batchpath=/Users/ryfa5051/NGS/$batchNum
 mkdir /Users/ryfa5051/NGS/fastq/$batchNum
 mkdir $batchpath
+#ref seq cp & var:
 cp /Users/ryfa5051/NGS/reference/ref_frags_3batch.fa $batchpath
 ref_seq=/Users/ryfa5051/NGS/$batchNum/ref_frags_3batch.fa
-## -> ask nick about utilizing dup ref -> ref_seqYESdup6genes=/Users/ryfa5051/NGS/3_batch/duptest_reffrags.fa
-#WHERE FASTQ FILES ARE LOCATED
+## potential utilizing dup ref for A3G filtering fasta variable is: ref_seqYESdup6genes=/Users/ryfa5051/NGS/3_batch/duptest_reffrags.fa
+#BATCH CORE_FASTQ DIR:
 indir=/Users/ryfa5051/NGS/fastq/$batchNum/core_fastq
 mkdir $indir
-#************rsync ftp://http/core_serv7/biof/SEQ/Sawyer/miseq/****REPLACE_WITH_CORE_BATCH_#**** $indir #***replace rsync value for core server by miseq run***#
-#WHERE TRIMMED FASTQ FILES ARE OUTPUTED
+#potentially add rsync step here so manually making the core_fastq directory for each new run isnt nessesary?
+#I.E. ftp://http/core_serv7/biof/SEQ/Sawyer/miseq/*REPLACE_WITH_CORE_BATCH_ID* $indir
+#DIRECTORY DESIGNATIONS:
 outdirTRIM=/Users/ryfa5051/NGS/fastq/$batchNum/trimmed
 mkdir $outdirTRIM
-###############################################REPLACE*BatchNum*WITHIN###################################################################
-###############################################REPLACE*BatchNum*WITHIN###################################################################
 indir_sams=$batchpath
 out_bams=$batchpath/bams
 mkdir $out_bams
@@ -42,15 +41,15 @@ mkdir $out_vcfs
 out_fasta=$batchpath/fastas
 mkdir $out_fasta
 final_fasta=$out_fasta/final_fasta
-mkdir $final_fasta 
+mkdir $final_fasta
 fastQCdir=/Users/ryfa5051/NGS/fastqc/$batchNum
 mkdir $fastQCdir
 fastQC_before=$fastQCdir/before
 fastQC_after=$fastQCdir/after
 mkdir $fastQC_before
 mkdir $fastQC_after
-#TRIMMING WITH TRIMMOMATIC AND BEFORE TRIMMING FASTQC
-echo "***** TRIMMING START *****" $(date) "*****"
+#TRIMMING WITH TRIMMOMATIC
+echo "*** TRIMMING START" $(date) "***"
 for pathandfilename in $(ls $indir/*R1_001.fastq.gz); do
 	filename1=$(basename $pathandfilename)
 	rootfilename=$(basename $pathandfilename R1_001.fastq.gz)
@@ -58,26 +57,23 @@ for pathandfilename in $(ls $indir/*R1_001.fastq.gz); do
 echo $filename1
 echo $filename2
 echo $pathandfilename
-#fastqc -q -t 1728 $indir/$filename1 --outdir=$fastQC_before/
-#fastqc -q -t 1728 $indir/$filename2 --outdir=$fastQC_before/
-#NOW YOU CAN RUN TRIMMOMATIC
-java -jar /opt/trimmomatic/0.36/trimmomatic-0.36.jar PE -quiet $indir/$filename1 $indir/$filename2 $outdirTRIM/${filename1//R1_001.fastq.gz/R1.PE.fastq} $outdirTRIM/${filename1//R1_001.fastq.gz/R1.UP.fastq} $outdirTRIM/${filename2//R2_001.fastq.gz/R2.PE.fastq} $outdirTRIM/${filename2//R2_001.fastq.gz/R2.UP.fastq} ILLUMINACLIP:/opt/trimmomatic/0.36/adapters/NexteraPE-PE.fa:2:30:10:1:"true" LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:30
+java -jar /opt/trimmomatic/0.36/trimmomatic-0.36.jar PE -quiet $indir/$filename1 $indir/$filename2 $outdirTRIM/${filename1//R1_001.fastq.gz/R1.PE.fastq} $outdirTRIM/${filename1//R1_001.fastq.gz/R1.UP.fastq} $outdirTRIM/${filename2//R2_001.fastq.gz/R2.PE.fastq} $outdirTRIM/${filename2//R2_001.fastq.gz/R2.UP.fastq} ILLUMINACLIP:/opt/trimmomatic/0.36/adapters/NexteraPE-PE.fa:2:30:10:1:"false" LEADING:3 TRAILING:3 SLIDINGWINDOW:4:15 MINLEN:30
 done
-echo "***** TRIMMING COMPLETE ***** MAPPING START *****" $(date) "*****"
-#FASTQC AFTER TRIMMING & REMOVING .ZIPS - .HTMLS ONLY (MAY DELETE LATER)
+#trimmomatic future note: -basename option eliminates the need for 4 file designation
+echo "*** TRIMMING COMPLETE *** MAPPING START ***" $(date) "***"
+#FASTQC AFTER TRIMMING & REMOVING .ZIPS - .HTMLS ONLY
 fastqc -q -t 1728 $indir/*R1_001.fastq.gz --outdir=$fastQC_before/
 fastqc -q -t 1728 $indir/*R2_001.fastq.gz  --outdir=$fastQC_before/
 fastqc -q -t 1728 $outdirTRIM/*.PE.fastq -o $fastQC_after/
 rm $fastQC_before/*.zip
 rm $fastQC_after/*.zip
-#MAPPING WITH BWA
-#INDEXING REFERENCE
+#MAPPING WITH BWA & INDEXING REFERENCE
 cd $batchpath
 bwa index $ref_seq
 samtools faidx $ref_seq
 samtools dict -s Nancymaae $ref_seq 
 cd ~
-#MAPPING FOR LOOP - BWA
+#MAPPING WITH BWA MEM
 for pathandtrimfilename in $(ls $outdirTRIM/*R1.PE.fastq); do
 	mapname1=$(basename $pathandtrimfilename)
 	rootmapname=$(basename $pathandtrimfilename R1.PE.fastq)
@@ -109,7 +105,7 @@ for pathandbamfilename in $(ls $out_bams/*_mapped.bam); do
 done
 #REMOVE NON-MARKED BAMS
 rm --force $out_bams/*_mapped.bam
-#???IMPLEMENT SAMTOOLS PHASE HERE??? NO. DO NOT. JAVA RUNTIME ERR. BAD RYAN.
+#holstein phasing algo goes here for future if using non vcf-reliant/trio version
 for mapsortbams in $(ls $out_bams/*_mdup.bam); do
 	bambasename=$(basename $mapsortbams)
 echo $mapsortbams
@@ -123,7 +119,7 @@ export BCFTOOLS_PLUGINS=/opt/bcftools/1.8/libexec/bcftools
 for called_vcfs in $(ls $out_vcfs/*_mdup.vcf); do
 	bcftools +fill-tags $called_vcfs -o ${called_vcfs//_mdup.vcf/_mdup.vcf}
 done
-###	? BCFTOOLS STATS -S -F $REF_SEQ - REMEMBER FOR POSTER STATS?
+#REF SEQ DICTIONARY FILE - PICARD
 java -jar /opt/picard/2.6.0/picard-2.6.0.jar CreateSequenceDictionary \
 	R=$ref_seq \
 	O=${ref_seq//.fa/.dict}
@@ -148,14 +144,15 @@ for fastas in $(ls $out_fasta/*mdup.fasta); do
 	fasta_formatter -w 0 -i $fastas -o $out_fasta/${fastabasename//.fasta/_fin.fasta}
 	awk '/^>/ {OUT=substr($0,2) ".fasta"}; OUT {print >OUT}' $out_fasta/${fastabasename//.fasta/_fin.fasta}
 done
-#gene congeal
+#CDS trim each gene from full pcr fragment
 cat ~/*TRIMCYP_Nancymaae.fasta | bbduk.sh in=stdin.fasta out=$final_fasta/"${batchNum}"_TRIMCYP_Nancymaae.fasta ftl=62 ftr=1486
 cat ~/*TETHERIN_Nancymaae.fasta | bbduk.sh in=stdin.fasta out=$final_fasta/"${batchNum}"_TETHERIN_Nancymaae.fasta ftl=61 ftr=636
 cat ~/*CD4_Nancymaae.fasta | bbduk.sh in=stdin.fasta out=$final_fasta/"${batchNum}"_CD4_Nancymaae.fasta ftl=99 ftr=1472
 cat ~/*CCR5_Nancymaae.fasta | bbduk.sh in=stdin.fasta out=$final_fasta/"${batchNum}"_CCR5_Nancymaae.fasta ftl=83 ftr=1141
 cat ~/*APOBEC3G_Nancymaae.fasta | bbduk.sh in=stdin.fasta out=$final_fasta/"${batchNum}"_APOBEC3G_Nancymaae.fasta ftl=53 ftr=1201
-cat ~/*A3G2dup_Nancymaae.fasta | bbduk.sh in=stdin.fasta out=$final_fasta/"${batchNum}"_APOBEC3G_Nancymaae.fasta ftl=53 ftr=1201
-#linerize 
+#below is for throwing in retrogene dup if using retro gene as additional gene in reference file for a3g filtering
+#cat ~/*A3G2dup_Nancymaae.fasta | bbduk.sh in=stdin.fasta out=$final_fasta/"${batchNum}"_APOBEC3G_Nancymaae.fasta ftl=53 ftr=1201
+#linerize FASTAs
 for fastas in $(ls $final_fasta/*.fasta); do
 	fasta_formatter -w 0 -i $fastas -o ${fastas//.fasta/_final.fasta}
 done
@@ -163,13 +160,16 @@ done
 rm ~/*.fasta
 rm $out_fasta/*mdup.fasta
 rm $final_fasta/*Nancymaae.fasta
-#echo "CAN'T HAVE rm IN LOOPS WITHOUT IF MATCHING STATEMENT ** YOU LOSE THE LOOPING FILES NOT THE SPECIFIC ONE YOU WANT TO DELETE"
+#awk CDS trim if we dont want to use bbmap/duk:
 #awk '{if (NR%2==0) print substr($0,63); else print $0}' < cat ~/*TRIMCYP_Nancymaae.fasta
 # |\
 #awk '{if (NR%2==0) print substr($0,); else print $0}' >  $final_fasta/3_batch_TRIMCYP_Nancymaaeawktest.fasta
-echo "Script Finished. Check Outputs."
+echo "Variant Calling Pipeline Complete. Check Outputs."
 echo $(date)
 end=$(date +%s)
-runtime=$((end-start)/60))
-echo "Total Runtime (Minutes): " $runtime
+startend=$((end-start))
+minutes=60
+runtime=$((startend/minutes))
+echo "Total Runtime (Minutes): " 
+printf "%0.1f\n" $runtime
 #woo
