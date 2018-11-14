@@ -1,0 +1,7 @@
+#possible phasing and subsequent 2-haloptype per sample FASTA output - need to check against DNAsnp for accuracy.
+-bash-4.2$ module load vcftools samtools 
+-bash-4.2$ java -jar /Users/ryfa5051/opt/beagle/beagle.28Sep18.793.jar gt=/Users/ryfa5051/scratch/An85915_S10_mapped_mdup.vcf out=/Users/ryfa5051/scratch/An85915_PHASED
+-bash-4.2$ cd /opt/vcftools/0.1.13/perl/
+-bash-4.2$ cat /Users/ryfa5051/NGS/reference/ref_frags_3batch.fa | /opt/vcftools/0.1.13/perl/vcf-consensus -H 1 -s An85915_S10_  /Users/ryfa5051/scratch/An85915_PHASED.vcf.gz > /Users/ryfa5051/An85915_phased_allele1.fa
+-bash-4.2$ cat /Users/ryfa5051/NGS/reference/ref_frags_3batch.fa | /opt/vcftools/0.1.13/perl/vcf-consensus -H 2 -s An85915_S10_  /Users/ryfa5051/scratch/An85915_PHASED.vcf.gz > /Users/ryfa5051/An85915_phased_allele2.fa
+-bash-4.2$ cd ~
